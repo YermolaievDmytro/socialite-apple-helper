@@ -11,7 +11,7 @@
 
 ```bash
 // This assumes that you have composer installed globally
-composer require ahilmurugesan/socialite-apple-helper
+composer require YermolaievDmytro/socialite-apple-helper
 ```
 
 ## 2. Configuration Setup
