@@ -17,9 +17,9 @@ class Kernel extends ConsoleKernel
     {
         parent::schedule($schedule);
 
-        $schedule->command('socialite:apple --refresh')->everyMinute()->when(function () {
+        $schedule->command('socialite:apple --refresh')->daily()->when(function () {
 
-            return ((config('services.apple.refresh_token_interval_days') * 86400) + config('services.apple.client_secret_updated_at')  > time());
+            return (((config('services.apple.refresh_token_interval_days')+7) * 86400) + config('services.apple.client_secret_updated_at')  > time());
         })->appendOutputTo(storage_path('logs/schedule.log'));
     }
 }
