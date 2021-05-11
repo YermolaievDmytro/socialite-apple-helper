@@ -46,7 +46,8 @@ class AppleKeyGenerate extends Command
         if(!$this->option('refresh')){
             self::setup();
         }else{
-            self::generateClientSecret();
+            self::generateClientSecret('5element');
+            self::generateClientSecret('elektrosila');
         }
     }
 
@@ -55,7 +56,7 @@ class AppleKeyGenerate extends Command
      *
      * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException
      */
-    public function setup()
+    public function setup($partnerSufix = '')
     {
         $team_id = $this->ask('Enter Team Id ');
         $key_id = $this->ask('Enter Key Id ');
@@ -65,43 +66,43 @@ class AppleKeyGenerate extends Command
         $refresh_token_interval_days = $this->ask('Enter client secret refresh interval(days)',180);
 
         config([
-            'services.apple.redirect' => trim($callback_url),
-            'services.apple.key_id' => trim($key_id),
-            'services.apple.team_id' => trim($team_id),
-            'services.apple.auth_key' => trim($auth_key),
-            'services.apple.client_id' => trim($client_id),
-            'services.apple.refresh_token_interval_days' => trim($refresh_token_interval_days),
+            'services.apple.redirect' . '_' . $partnerSufix => trim($callback_url),
+            'services.apple.key_id' . '_' . $partnerSufix => trim($key_id),
+            'services.apple.team_id' . '_' . $partnerSufix => trim($team_id),
+            'services.apple.auth_key' . '_' . $partnerSufix => trim($auth_key),
+            'services.apple.client_id' . '_' . $partnerSufix => trim($client_id),
+            'services.apple.refresh_token_interval_days' . '_' . $partnerSufix => trim($refresh_token_interval_days),
         ]);
 
         $client_secret = self::generateClientSecret(false);
 
         if(!empty($client_secret)) {
             $env_vars = [
-                'APPLE_REDIRECT_URI' => $callback_url,
-                'APPLE_KEY_ID' => $key_id,
-                'APPLE_TEAM_ID' => $team_id,
-                'APPLE_AUTH_KEY' => $auth_key,
-                'APPLE_CLIENT_ID' => $client_id,
-                'APPLE_CLIENT_SECRET' => $client_secret,
-                'APPLE_REFRESH_TOKEN_INTERVAL_DAYS' => $refresh_token_interval_days,
+                'APPLE_REDIRECT_URI' . '_' . strtoupper($partnerSufix) => $callback_url,
+                'APPLE_KEY_ID' . '_' . strtoupper($partnerSufix) => $key_id,
+                'APPLE_TEAM_ID' . '_' . strtoupper($partnerSufix) => $team_id,
+                'APPLE_AUTH_KEY' . '_' . strtoupper($partnerSufix) => $auth_key,
+                'APPLE_CLIENT_ID' . '_' . strtoupper($partnerSufix) => $client_id,
+                'APPLE_CLIENT_SECRET' . '_' . strtoupper($partnerSufix) => $client_secret,
+                'APPLE_REFRESH_TOKEN_INTERVAL_DAYS' . '_' . strtoupper($partnerSufix) => $refresh_token_interval_days,
             ];
 
-            self::writeEnv($env_vars);
+            self::writeEnv($env_vars, $partnerSufix);
         }
     }
 
     /**
      * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException
      */
-    private function generateClientSecret($refresh=true)
+    private function generateClientSecret($refresh=true, $partnerSufix='')
     {
         $validator = Validator::make(config('services.apple'), [
-            'redirect' => 'required|url',
-            'key_id' => 'required',
-            'team_id' => 'required',
-            'auth_key' => 'required',
-            'client_id' => 'required',
-            'refresh_token_interval_days' => 'required|numeric',
+            'redirect' . '_' . $partnerSufix => 'required|url',
+            'key_id' . '_' . $partnerSufix => 'required',
+            'team_id' . '_' . $partnerSufix => 'required',
+            'auth_key' . '_' . $partnerSufix => 'required',
+            'client_id' . '_' . $partnerSufix => 'required',
+            'refresh_token_interval_days' . '_' . $partnerSufix => 'required|numeric',
         ]);
 
         if ($validator->fails()) {
@@ -112,10 +113,10 @@ class AppleKeyGenerate extends Command
             return null;
         }
 
-        $exists = Storage::disk('local')->exists(config('services.apple.auth_key'));
+        $exists = Storage::disk('local')->exists(config('services.apple.auth_key' . '_' . $partnerSufix));
 
         if($exists){
-            $privateKeyFile = Storage::disk('local')->get(config('services.apple.auth_key'));
+            $privateKeyFile = Storage::disk('local')->get(config('services.apple.auth_key' . '_' . $partnerSufix));
             $now   = new DateTimeImmutable();
 
             try{
@@ -125,16 +126,16 @@ class AppleKeyGenerate extends Command
 
                 $token = $config->builder()
                     // Configures the issuer (iss claim)
-                    ->issuedBy(config('services.apple.team_id'))
+                    ->issuedBy(config('services.apple.team_id' . '_' . $partnerSufix))
                     // Configures the audience (aud claim)
-                    ->permittedFor('https://appleid.apple.com')
+                    ->permittedFor('https://appleid.apple.com' . '_' . $partnerSufix)
                     // Configures the time that the token was issue (iat claim)
                     ->issuedAt($now)
                     // Configures the expiration time of the token (exp claim)
-                    ->expiresAt($now->modify("+" . config('services.apple.refresh_token_interval_days') . " day"))
+                    ->expiresAt($now->modify("+" . config('services.apple.refresh_token_interval_days' . '_' . $partnerSufix) . " day"))
                     //Configures the subject
-                    ->relatedTo(config('services.apple.client_id'))
-                    ->withHeader('kid', config('services.apple.key_id'))
+                    ->relatedTo(config('services.apple.client_id' . '_' . $partnerSufix))
+                    ->withHeader('kid', config('services.apple.key_id' . '_' . $partnerSufix))
                     ->withHeader('type', 'JWT')
                     ->withHeader('alg', 'ES256')
                     // Builds a new token
@@ -147,14 +148,14 @@ class AppleKeyGenerate extends Command
                 {
                     return $client_secret;
                 }else{
-                    self::writeEnv(['APPLE_CLIENT_SECRET' => $client_secret]);
+                    self::writeEnv(['APPLE_CLIENT_SECRET' . '_' . strtoupper($partnerSufix) => $client_secret], $partnerSufix);
                 }
             }catch (\Exception $exception){
                 $this->error($exception->getMessage());
             }
         }else {
 
-            $this->error(config('services.apple.auth_key').' - '.'File not found in the local driver path('.config("filesystems.disks.local.root").')');
+            $this->error(config('services.apple.auth_key' . '_' . $partnerSufix).' - '.'File not found in the local driver path('.config("filesystems.disks.local.root").')');
 
         }
     }
@@ -164,12 +165,12 @@ class AppleKeyGenerate extends Command
      *
      * @param array $env_vars
      */
-    private function writeEnv($env_vars)
+    private function writeEnv($env_vars, $partnerSufix = '')
     {
         foreach($env_vars as $env_key => $env_val){
             self::setEnv($env_key, $env_val);
         }
-        self::setEnv('APPLE_CLIENT_SECRET_UPDATED_AT', time() - 86400);
+        self::setEnv('APPLE_CLIENT_SECRET_UPDATED_AT' . '_' . strtoupper($partnerSufix) , time() - 86400);
 
         Artisan::call('config:clear');
     }
